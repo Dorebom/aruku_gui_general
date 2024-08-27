@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 class CommonStateCode {
   final int nodeId;
   final int stateMachine;
@@ -25,15 +27,15 @@ class CommonStateCode {
     );
   }
 
-  factory CommonStateCode.fromBytes(List<int> bytes) {
+  factory CommonStateCode.fromBytes(Uint8List bytes) {
     return CommonStateCode(
       //       byteData.setInt32(0, 255, Endian.little); // int source
       // リトルエンディアンでbytes[0]を4バイトの整数に変換
-      
-      nodeId: bytes[0],
-      stateMachine: bytes[1],
-      transitDestinationNodeStateMachine: bytes[2],
-      dataSize: bytes[3],
+
+      nodeId: bytes.buffer.asByteData(0, 4).getInt32(0, Endian.little),
+      stateMachine: bytes.buffer.asByteData(4, 4).getInt32(0, Endian.little),
+      transitDestinationNodeStateMachine: bytes.buffer.asByteData(8, 4).getInt32(0, Endian.little),
+      dataSize: bytes.buffer.asByteData(12, 4).getInt32(0, Endian.little),
     );
   }
 }

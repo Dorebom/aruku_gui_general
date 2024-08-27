@@ -10,19 +10,21 @@ class UserData {
   final bool shouldNavigateHome;
   final bool isUdpConnected;
   final bool isSendingUdpConnectMessage;
+  final Map<int, String> nodeInfo;
 
   UserData({
-    this.text = '',
-    this.a = 0,
-    this.b = 0,
-    this.srcIpAddress = '127.0.0.1',
-    this.srcPort = 50121,
-    this.dstIpAddress = '127.0.0.1',
-    this.dstPort = 50120,
-    this.shouldNavigateHome = false,
-    this.isUdpConnected = false,
-    this.isSendingUdpConnectMessage = false,
-  });
+      this.text = '',
+      this.a = 0,
+      this.b = 0,
+      this.srcIpAddress = '127.0.0.1',
+      this.srcPort = 50121,
+      this.dstIpAddress = '127.0.0.1',
+      this.dstPort = 50120,
+      this.shouldNavigateHome = false,
+      this.isUdpConnected = false,
+      this.isSendingUdpConnectMessage = false,
+      this.nodeInfo = const {},//{-1: 'None'},
+    });
 
   UserData copyWith({
     String? text,
@@ -35,6 +37,7 @@ class UserData {
     bool? shouldNavigateHome,
     bool? isUdpConnected,
     bool? isSendingUdpConnectMessage,
+    Map<int, String>? nodeInfo,
   }) {
     return UserData(
       text: text ?? this.text,
@@ -47,6 +50,7 @@ class UserData {
       shouldNavigateHome: shouldNavigateHome ?? this.shouldNavigateHome,
       isUdpConnected: isUdpConnected ?? this.isUdpConnected,
       isSendingUdpConnectMessage: isSendingUdpConnectMessage ?? this.isSendingUdpConnectMessage,
+      nodeInfo: nodeInfo ?? this.nodeInfo,
     );
   }
 }

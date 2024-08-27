@@ -40,7 +40,7 @@ class SettingsPage extends ConsumerWidget {
         return;
       }
 
-      final byteData = ByteData(26);     // 2 + 2 + 4 + 4
+      final byteData = ByteData(32);     // 2 + 2 + 4 + 4
       // make common cmd code
       byteData.setInt32(0, 255, Endian.little); // int source
       byteData.setInt32(4, 0, Endian.little);   // int destination
@@ -71,7 +71,7 @@ class SettingsPage extends ConsumerWidget {
         return;
       }
 
-      final byteData = ByteData(26);     // 2 + 2 + 4 + 4
+      final byteData = ByteData(32);     // 2 + 2 + 4 + 4
       // make common cmd code
       byteData.setInt32(0, 255, Endian.little); // int source
       byteData.setInt32(4, 0, Endian.little);   // int destination
@@ -91,6 +91,72 @@ class SettingsPage extends ConsumerWidget {
       });
 
       logger.i('sendUDPMessage: $ip:$port, $srcPort');
+    }
+
+    void sendRequestHubInfoMessage(){
+      final ip = _dstIpController.text;
+      final port = int.tryParse(_dstPortController.text);
+      final srcPort = int.tryParse(_srcPortController.text);
+
+      if (ip.isEmpty || port == null || srcPort == null || srcPort < 0 || srcPort > 65535) {
+        return;
+      }
+
+      final byteData = ByteData(32);     // 2 + 2 + 4 + 4
+      // make common cmd code
+      byteData.setInt32(0, 255, Endian.little); // int source
+      byteData.setInt32(4, 0, Endian.little);   // int destination
+      byteData.setInt32(8, 0, Endian.little);   // int priority
+      byteData.setInt32(12, 0, Endian.little);  // int cmd_id
+      byteData.setInt32(16, 8, Endian.little);  // int cmd_type 8: Send Hub info
+      byteData.setInt32(20, 0, Endian.little);  // int data_size
+      // set boolean data
+      byteData.setUint8(24, 0);  // boolean is_sys_cmd
+      byteData.setUint8(25, 0);  // boolean is_used_mesgpack
+
+      final data = byteData.buffer.asUint8List();
+
+      RawDatagramSocket.bind(InternetAddress.anyIPv4, 0).then((socket) {
+        socket.send(data, InternetAddress(ip), port);
+        socket.close();
+      });
+
+      logger.i('sendUDPMessage: $ip:$port, $srcPort');
+    }
+
+    void sendStreamNodeData(int nodeId){
+      final ip = _dstIpController.text;
+      final port = int.tryParse(_dstPortController.text);
+      final srcPort = int.tryParse(_srcPortController.text);
+
+      if (ip.isEmpty || port == null || srcPort == null || srcPort < 0 || srcPort > 65535) {
+        return;
+      }
+
+      final byteData = ByteData(32 + 4);     // 2 + 2 + 4 + 4
+      // make common cmd code
+      byteData.setInt32(0, 255, Endian.little); // int source
+      byteData.setInt32(4, 0, Endian.little);   // int destination
+      byteData.setInt32(8, 0, Endian.little);   // int priority
+      byteData.setInt32(12, 0, Endian.little);  // int cmd_id
+      byteData.setInt32(16, 10, Endian.little);  // int cmd_type 10: Send Stream Node Data
+      byteData.setInt32(20, 4, Endian.little);  // int data_size
+      // set boolean data
+      byteData.setUint8(24, 0);  // boolean is_sys_cmd
+      byteData.setUint8(25, 0);  // boolean is_used_mesgpack
+
+      byteData.setInt32(32, nodeId, Endian.little);  // int node_id
+
+      final data = byteData.buffer.asUint8List();
+
+      RawDatagramSocket.bind(InternetAddress.anyIPv4, 0).then((socket) {
+        socket.send(data, InternetAddress(ip), port);
+        //socket.send(nodeData, InternetAddress(ip), port);
+        socket.close();
+      });
+
+      logger.i('sendUDPMessage: $ip:$port, $srcPort');
+
     }
 
     return Scaffold(
@@ -157,6 +223,9 @@ class SettingsPage extends ConsumerWidget {
                 }
                 sendUDPStartMessage();
               },
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all<Color>(userData?.isUdpConnected ?? false ? Colors.green : Colors.white70),
+              ),
               child: const Text('Send UDP Connect Message'),
             ),
             const SizedBox(height: 20),
@@ -166,9 +235,53 @@ class SettingsPage extends ConsumerWidget {
                 ref.read(userDataProvider.notifier).state = userData?.copyWith(isUdpConnected: false);
                 sendUDPEndMessage();
               },
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all<Color>(userData?.isUdpConnected ?? false ? Colors.red : Colors.white70),
+              ),
               child: const Text('Send UDP Disconnect Message'),
             ),
             const SizedBox(height: 20),
+            const Divider(),
+            // Get system information
+            ElevatedButton(
+              onPressed: (){
+                // ここにシステム情報取得処理を追加
+                sendRequestHubInfoMessage();
+              },
+              child: const Text('Get System Information'),
+            ),
+            const SizedBox(height: 20),
+            // userData?.nodeInfoの情報を表示
+            Text(
+              'Node Information',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView.builder(
+                itemCount: userData?.nodeInfo.length ?? 0,
+                itemBuilder: (context, index) {
+                  final key = userData?.nodeInfo.keys.elementAt(index);
+                  final value = userData?.nodeInfo.values.elementAt(index);
+                  // 表を中央に揃えて表示
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      //Text('Node ID: $key, Node Name: $value'),
+                      //const Divider(),
+                      ListTile(
+                        title: Text('Node ID: $key'),
+                        subtitle: Text('Node Name: $value'),
+                        leading: const Icon(Icons.account_circle),
+                        onTap: (){
+                          sendStreamNodeData(key!);
+                        },
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
           ],
         ),
 
@@ -238,23 +351,81 @@ class SettingsPage extends ConsumerWidget {
 
   Future<void> _processUdpMessage(Uint8List data, WidgetRef ref) async{
     // ここで受信したデータを処理する
-    //final commonStateCode = CommonStateCode.fromBytes(data);
 
-    // data[0]に1byteのデータサイズが入っている
-    final headerDataSize = data[0];
-
-    final nodeId = data[0];
-    final stateMachine = data[1];
-    final dataSize = data[3];
-
+    // B-HUbのsend_state.hppで定義されているデータ構造に従ってデータを処理する
+    // データの構造は、send_state.hppを参照
+    ByteData byteData = data.buffer.asByteData(0, 4);
     //ByteData byteData = data.buffer.asByteData(0, 4);
-    //final nodeId = byteData.getInt32(0, Endian.little);
-    //byteData = data.buffer.asByteData(4, 4);
-    //final stateMachine = byteData.getInt32(0, Endian.little);
-    //byteData = data.buffer.asByteData(12, 4);
-    //final dataSize = byteData.getInt32(0, Endian.little);
+    final fixedHeaderDataSize = byteData.getInt32(0, Endian.little);
+    byteData = data.buffer.asByteData(4, 4);
+    final maxStackMarkerSize = byteData.getInt32(0, Endian.little);
+    byteData = data.buffer.asByteData(8, 4);
+    final recvStateHeaderSize = byteData.getInt32(0, Endian.little);
+    byteData = data.buffer.asByteData(12, 4);
+    final oneStackSize = byteData.getInt32(0, Endian.little);
+    byteData = data.buffer.asByteData(16, 4);
+    final stackMarkerNum = byteData.getInt32(0, Endian.little);
+    // ここまでで、固定ヘッダのデータを取得
 
-    logger.i('CommonStateCode: (node id)$nodeId, (SM)$stateMachine, (data size)$dataSize');
+    // ここから、stackMarkerNumの数だけ、stackMarkerに従って、スタックデータを取得
+    if (stackMarkerNum <= maxStackMarkerSize){
+      for (var i = 0; i < stackMarkerNum; i++) {
+        byteData = data.buffer.asByteData(20 + i, 1);
+        final int stackNum = byteData.getInt8(0);
+        logger.i('StackMarker: $stackNum');
+
+        //final Uint8List stackByteData = data.buffer.asUint8List(recvStateHeaderSize, oneStackSize * stackNum);
+        Uint8List stackByteData = Uint8List(oneStackSize * stackNum);
+        stackByteData.setRange(0, oneStackSize * stackNum, data, recvStateHeaderSize);
+        //Uint8List stackByteData = data.buffer.asByteData(recvStateHeaderSize, oneStackSize * stackNum);
+        logger.i('StackData: ${stackByteData.length} bytes');
+        logger.i('StackData: $stackByteData');
+
+        // ここで、スタックデータを処理する
+        final commonStateCode = CommonStateCode.fromBytes(stackByteData);
+        logger.i('NodeID: ${commonStateCode.nodeId}');
+        logger.i('StateMachine: ${commonStateCode.stateMachine}');
+        logger.i('NodeDataSize: ${commonStateCode.dataSize}');
+        Uint8List nodeStateByteData = Uint8List(commonStateCode.dataSize);
+        nodeStateByteData.setRange(0, commonStateCode.dataSize, stackByteData, fixedHeaderDataSize);
+        logger.i('NodeStateData: $nodeStateByteData');
+
+        // switch文で、Node IDに応じた処理を行う
+        switch (commonStateCode.nodeId) {
+          case 0: // Hub
+            ByteData byteData3 = nodeStateByteData.buffer.asByteData(4, 4);
+            final maxNodeNum = byteData3.getInt32(0, Endian.little);
+            byteData3 = nodeStateByteData.buffer.asByteData(8, 4);
+            final maxNodeNameSize = byteData3.getInt32(0, Endian.little);
+            byteData3 = nodeStateByteData.buffer.asByteData(0, 4);
+            final nodeNum = byteData3.getInt32(0, Endian.little);
+            final Map<int, String> nodes = {};
+
+            for (var i = 0; i < nodeNum; i++) {
+              byteData3 = nodeStateByteData.buffer.asByteData(12 + i * 4, 4);
+              final nodeId = byteData3.getInt32(0, Endian.little);
+              Uint8List nodeNameByteData = Uint8List(maxNodeNameSize);
+              nodeNameByteData.setRange(0, maxNodeNameSize, nodeStateByteData, 12 + maxNodeNum * 4 + i * maxNodeNameSize);
+              final nodeName = utf8.decode(nodeNameByteData);
+              logger.i('NodeID: $nodeId, NodeName: $nodeName');
+
+              nodes[nodeId] = nodeName;
+              }
+            final userData = ref.watch(userDataProvider);
+            ref.read(userDataProvider.notifier).state = userData?.copyWith(nodeInfo: nodes);
+            break;
+          case 1:
+            // Node ID 1の処理
+            break;
+          case 2:
+            // Node ID 2の処理
+            break;
+          default:
+            break;
+        }
+
+      }
+    }
   }
 
 }
